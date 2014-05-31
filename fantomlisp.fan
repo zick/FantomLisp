@@ -186,7 +186,40 @@ class Lisp {
     return "(" + ret + " . " + printObj(obj) + ")";
   }
 
+  LObj findVar(LObj sym, LObj env) {
+    while (env.tag == "cons") {
+      alist := env.car
+      while (alist.tag == "cons") {
+        if (alist.car.car === sym) {
+          return alist.car
+        }
+        alist = alist.cdr
+      }
+      env = env.cdr
+    }
+    return kNil
+  }
+
+  Void addToEnv(LObj sym, LObj val, LObj env) {
+    env.car = LObj.makeCons(LObj.makeCons(sym, val), env.car)
+  }
+
+  LObj eval(LObj obj, LObj env) {
+    if (obj.tag == "nil" || obj.tag == "num" || obj.tag == "error") {
+      return obj
+    } else if (obj.tag == "sym") {
+      bind := findVar(obj, env)
+      if (bind === kNil) {
+        return LObj.makeError(obj.str + " has no value")
+      }
+      return bind.cdr
+    }
+    return LObj.makeError("noimpl")
+  }
+
+  LObj g_env := LObj.makeCons(kNil, kNil)
   new make() {
+    addToEnv(makeSym("t"), makeSym("t"), g_env)
   }
 }
 
@@ -198,7 +231,7 @@ class Main {
     env.out().flush()
     line := env.in().readLine()
     while (line != null) {
-      echo(lisp.printObj(lisp.read(line).obj))
+      echo(lisp.printObj(lisp.eval(lisp.read(line).obj, lisp.g_env)))
       env.out().print("> ")
       env.out().flush()
       line = env.in().readLine()
