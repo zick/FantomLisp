@@ -241,6 +241,16 @@ class Lisp {
       sym := safeCar(args)
       addToEnv(sym, expr, g_env)
       return sym
+    } else if (op === makeSym("setq")) {
+      val := eval(safeCar(safeCdr(args)), env)
+      sym := safeCar(args)
+      bind := findVar(sym, env)
+      if (bind === kNil) {
+        addToEnv(sym, val, g_env)
+      } else {
+        bind.cdr = val
+      }
+      return val
     }
     return apply(eval(op, env), evlis(args, env), env)
   }
