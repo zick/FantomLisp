@@ -1,6 +1,6 @@
 class LObj {
   Str tag
-  Num? num
+  Int? num
   Str? str
   LObj? car
   LObj? cdr
@@ -17,7 +17,7 @@ class LObj {
     this.tag = "error"
     this.str = s
   }
-  new makeNum(Num n) {
+  new makeNum(Int n) {
     this.tag = "num"
     this.num = n
   }
@@ -108,7 +108,7 @@ class Lisp {
   }
 
   LObj makeNumOrSym(Str str) {
-    Num? n := str.toDecimal(false)
+    Int? n := str.toInt(10, false)
     if (n != null) {
       return LObj.makeNum(n)
     }
@@ -300,11 +300,87 @@ class Lisp {
     return LObj.makeCons(safeCar(args), safeCar(safeCdr(args)))
   }
 
+  |LObj->LObj| subrEq := |LObj args -> LObj| {
+    x := safeCar(args)
+    y := safeCar(safeCdr(args))
+    if (x.tag == "num" && y.tag == "num") {
+      if (x.num == y.num) {
+        return makeSym("t")
+      }
+      return kNil
+    } else if (x == y) {
+      return makeSym("t")
+    }
+    return kNil
+  }
+
+  |LObj->LObj| subrAtom := |LObj args -> LObj| {
+    if (safeCar(args).tag == "cons") {
+      return kNil
+    }
+    return makeSym("t")
+  }
+
+  |LObj->LObj| subrNumberp := |LObj args -> LObj| {
+    if (safeCar(args).tag == "num") {
+      return makeSym("t")
+    }
+    return kNil
+  }
+
+  |LObj->LObj| subrSymbolp := |LObj args -> LObj| {
+    if (safeCar(args).tag == "sym") {
+      return makeSym("t")
+    }
+    return kNil
+  }
+
+  |LObj->LObj| subrAddOrMul(|Int,Int->Int| fn, Int init_val) {
+    return |LObj args -> LObj| {
+      ret := init_val
+      while (args.tag == "cons") {
+        if (args.car.tag != "num") return LObj.makeError("wrong type")
+        ret = fn(ret, args.car.num)
+        args = args.cdr
+      }
+      return LObj.makeNum(ret)
+    }
+  }
+
+  |LObj->LObj| subrSubOrDivOrMod(|Int,Int->Int| fn) {
+    return |LObj args -> LObj| {
+      x := safeCar(args)
+      y := safeCar(safeCdr(args))
+      if (x.tag != "num" || y.tag != "num") return LObj.makeError("wrong type")
+      return LObj.makeNum(fn(x.num, y.num))
+    }
+  }
+
+  |LObj->LObj| subrAdd
+  |LObj->LObj| subrMul
+  |LObj->LObj| subrSub
+  |LObj->LObj| subrDiv
+  |LObj->LObj| subrMod
   LObj g_env := LObj.makeCons(kNil, kNil)
   new make() {
+    subrAdd = subrAddOrMul(|Int x, Int y -> Int| { return x + y }, 0)
+    subrMul = subrAddOrMul(|Int x, Int y -> Int| { return x * y }, 1)
+    subrSub = subrSubOrDivOrMod(|Int x, Int y -> Int| { return x - y })
+    subrDiv = subrSubOrDivOrMod(|Int x, Int y -> Int| { return x / y })
+    subrMod = subrSubOrDivOrMod(|Int x, Int y -> Int| { return x % y })
+
     addToEnv(makeSym("car"), LObj.makeSubr(subrCar), g_env)
     addToEnv(makeSym("cdr"), LObj.makeSubr(subrCdr), g_env)
     addToEnv(makeSym("cons"), LObj.makeSubr(subrCons), g_env)
+    addToEnv(makeSym("eq"), LObj.makeSubr(subrEq), g_env)
+    addToEnv(makeSym("atom"), LObj.makeSubr(subrAtom), g_env)
+    addToEnv(makeSym("numberp"), LObj.makeSubr(subrNumberp), g_env)
+    addToEnv(makeSym("symbolp"), LObj.makeSubr(subrSymbolp), g_env)
+    addToEnv(makeSym("+"), LObj.makeSubr(subrAdd), g_env)
+    addToEnv(makeSym("*"), LObj.makeSubr(subrMul), g_env)
+    addToEnv(makeSym("-"), LObj.makeSubr(subrSub), g_env)
+    addToEnv(makeSym("/"), LObj.makeSubr(subrDiv), g_env)
+    addToEnv(makeSym("mod"), LObj.makeSubr(subrMod), g_env)
     addToEnv(makeSym("t"), makeSym("t"), g_env)
   }
 }
