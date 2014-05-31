@@ -75,6 +75,17 @@ class Lisp {
     return sym_table[str]
   }
 
+  LObj nreverse(LObj lst) {
+    ret := kNil
+    while (lst.tag == "cons") {
+      tmp := lst.cdr
+      lst.cdr = ret
+      ret = lst
+      lst = tmp
+    }
+    return ret
+  }
+
   Bool isSpace(Int c) {
     return c == '\n' || c == '\r' || c == '\t' || c == ' '
   }
@@ -113,11 +124,66 @@ class Lisp {
     } else if (str[0] == kRPar) {
       return ParseState.make(LObj.makeError("invalid syntax" + str), "")
     } else if (str[0] == kLPar) {
-      return ParseState.make(LObj.makeError("noimpl"), "")
+      return readList(str[1..-1])
     } else if (str[0] == kQuote) {
-      return ParseState.make(LObj.makeError("noimpl"), "")
+      tmp := read(str[1..-1])
+      return ParseState(LObj.makeCons(makeSym("quote"),
+                                      LObj.makeCons(tmp.obj, kNil)),
+                        tmp.next)
     }
     return readAtom(str)
+  }
+
+  ParseState readList(Str str) {
+    ret := kNil
+    while (true) {
+    str = skipSpaces(str)
+      if (str.size() == 0) {
+        return ParseState.make(LObj.makeError("unfinished parenthesis"), "")
+      } else if (str[0] == kRPar) {
+        break
+      }
+      ParseState tmp := read(str)
+      if (tmp.obj.tag == "error") {
+        return tmp
+      }
+      ret = LObj.makeCons(tmp.obj, ret)
+      str = tmp.next
+    }
+    return ParseState.make(nreverse(ret), str[1..-1])
+  }
+
+  Str printObj(LObj obj) {
+    if (obj.tag == "sym" || obj.tag == "nil") {
+      return obj.str
+    } else if (obj.tag == "num") {
+      return obj.num.toStr()
+    } else if (obj.tag == "error") {
+      return "<error: " + obj.str + ">"
+    } else if (obj.tag == "cons") {
+      return printList(obj)
+    } else if (obj.tag == "subr" || obj.tag == "expr") {
+      return "<" + obj.tag + ">"
+    }
+    return "<unknown>"
+  }
+
+  Str printList(LObj obj) {
+    ret := ""
+    first := true
+    while (obj.tag == "cons") {
+      if (first) {
+        first = false
+      } else {
+        ret += " "
+      }
+      ret += printObj(obj.car)
+      obj = obj.cdr
+    }
+    if (obj === kNil) {
+      return "(" + ret + ")"
+    }
+    return "(" + ret + " . " + printObj(obj) + ")";
   }
 
   new make() {
@@ -132,9 +198,9 @@ class Main {
     env.out().flush()
     line := env.in().readLine()
     while (line != null) {
+      echo(lisp.printObj(lisp.read(line).obj))
       env.out().print("> ")
       env.out().flush()
-      echo(lisp.read(line).obj.str)
       line = env.in().readLine()
     }
   }
