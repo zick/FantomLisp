@@ -86,6 +86,16 @@ class Lisp {
     return ret
   }
 
+  LObj pairlis(LObj lst1, LObj lst2) {
+    ret := kNil
+    while (lst1.tag == "cons" && lst2.tag == "cons") {
+      ret = LObj.makeCons(LObj.makeCons(lst1.car, lst2.car), ret)
+      lst1 = lst1.cdr
+      lst2 = lst2.cdr
+    }
+    return nreverse(ret)
+  }
+
   Bool isSpace(Int c) {
     return c == '\n' || c == '\r' || c == '\t' || c == ' '
   }
@@ -224,6 +234,8 @@ class Lisp {
         return eval(safeCar(safeCdr(safeCdr(args))), env)
       }
       return eval(safeCar(safeCdr(args)), env)
+    } else if (op === makeSym("lambda")) {
+      return LObj.makeExpr(args, env)
     }
     return apply(eval(op, env), evlis(args, env), env)
   }
@@ -239,6 +251,15 @@ class Lisp {
     return nreverse(ret)
   }
 
+  LObj progn(LObj body, LObj env) {
+    ret := kNil
+    while (body.tag == "cons") {
+      ret = eval(body.car, env)
+      body = body.cdr
+    }
+    return ret
+  }
+
   LObj apply(LObj fn, LObj args, LObj env) {
     if (fn.tag == "error") {
       return fn
@@ -246,6 +267,8 @@ class Lisp {
       return args
     } else if (fn.tag == "subr") {
       return fn.fn(args)
+    } else if (fn.tag == "expr") {
+      return progn(fn.body, LObj.makeCons(pairlis(fn.args, args), fn.env))
     }
     return LObj.makeError(printObj(fn) + " is not function")
   }
