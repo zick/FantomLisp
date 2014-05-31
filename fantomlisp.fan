@@ -236,6 +236,11 @@ class Lisp {
       return eval(safeCar(safeCdr(args)), env)
     } else if (op === makeSym("lambda")) {
       return LObj.makeExpr(args, env)
+    } else if (op === makeSym("defun")) {
+      expr := LObj.makeExpr(safeCdr(args), env)
+      sym := safeCar(args)
+      addToEnv(sym, expr, g_env)
+      return sym
     }
     return apply(eval(op, env), evlis(args, env), env)
   }
