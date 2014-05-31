@@ -214,11 +214,59 @@ class Lisp {
       }
       return bind.cdr
     }
-    return LObj.makeError("noimpl")
+
+    op := safeCar(obj)
+    args := safeCdr(obj)
+    if (op === makeSym("quote")) {
+      return safeCar(args)
+    } else if (op === makeSym("if")) {
+      if (eval(safeCar(args), env) === kNil) {
+        return eval(safeCar(safeCdr(safeCdr(args))), env)
+      }
+      return eval(safeCar(safeCdr(args)), env)
+    }
+    return apply(eval(op, env), evlis(args, env), env)
+  }
+
+  LObj evlis(LObj lst, LObj env) {
+    ret := kNil
+    while (lst.tag == "cons") {
+      elm := eval(lst.car, env)
+      if (elm.tag == "error") return elm
+      ret = LObj.makeCons(elm, ret)
+      lst = lst.cdr
+    }
+    return nreverse(ret)
+  }
+
+  LObj apply(LObj fn, LObj args, LObj env) {
+    if (fn.tag == "error") {
+      return fn
+    } else if (args.tag == "error") {
+      return args
+    } else if (fn.tag == "subr") {
+      return fn.fn(args)
+    }
+    return LObj.makeError(printObj(fn) + " is not function")
+  }
+
+  |LObj->LObj| subrCar := |LObj args -> LObj| {
+    return safeCar(safeCar(args))
+  }
+
+  |LObj->LObj| subrCdr := |LObj args -> LObj| {
+    return safeCdr(safeCar(args))
+  }
+
+  |LObj->LObj| subrCons := |LObj args -> LObj| {
+    return LObj.makeCons(safeCar(args), safeCar(safeCdr(args)))
   }
 
   LObj g_env := LObj.makeCons(kNil, kNil)
   new make() {
+    addToEnv(makeSym("car"), LObj.makeSubr(subrCar), g_env)
+    addToEnv(makeSym("cdr"), LObj.makeSubr(subrCdr), g_env)
+    addToEnv(makeSym("cons"), LObj.makeSubr(subrCons), g_env)
     addToEnv(makeSym("t"), makeSym("t"), g_env)
   }
 }
