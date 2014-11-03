@@ -74,6 +74,12 @@ class Lisp {
     }
     return sym_table[str]
   }
+  LObj sym_t := makeSym("t")
+  LObj sym_quote := makeSym("quote")
+  LObj sym_if := makeSym("if")
+  LObj sym_lambda := makeSym("lambda")
+  LObj sym_defun := makeSym("defun")
+  LObj sym_setq := makeSym("setq")
 
   LObj nreverse(LObj lst) {
     ret := kNil
@@ -137,7 +143,7 @@ class Lisp {
       return readList(str[1..-1])
     } else if (str[0] == kQuote) {
       tmp := read(str[1..-1])
-      return ParseState(LObj.makeCons(makeSym("quote"),
+      return ParseState(LObj.makeCons(sym_quote,
                                       LObj.makeCons(tmp.obj, kNil)),
                         tmp.next)
     }
@@ -227,21 +233,21 @@ class Lisp {
 
     op := safeCar(obj)
     args := safeCdr(obj)
-    if (op === makeSym("quote")) {
+    if (op === sym_quote) {
       return safeCar(args)
-    } else if (op === makeSym("if")) {
+    } else if (op === sym_if) {
       if (eval(safeCar(args), env) === kNil) {
         return eval(safeCar(safeCdr(safeCdr(args))), env)
       }
       return eval(safeCar(safeCdr(args)), env)
-    } else if (op === makeSym("lambda")) {
+    } else if (op === sym_lambda) {
       return LObj.makeExpr(args, env)
-    } else if (op === makeSym("defun")) {
+    } else if (op === sym_defun) {
       expr := LObj.makeExpr(safeCdr(args), env)
       sym := safeCar(args)
       addToEnv(sym, expr, g_env)
       return sym
-    } else if (op === makeSym("setq")) {
+    } else if (op === sym_setq) {
       val := eval(safeCar(safeCdr(args)), env)
       sym := safeCar(args)
       bind := findVar(sym, env)
@@ -305,11 +311,11 @@ class Lisp {
     y := safeCar(safeCdr(args))
     if (x.tag == "num" && y.tag == "num") {
       if (x.num == y.num) {
-        return makeSym("t")
+        return sym_t
       }
       return kNil
     } else if (x == y) {
-      return makeSym("t")
+      return sym_t
     }
     return kNil
   }
@@ -318,19 +324,19 @@ class Lisp {
     if (safeCar(args).tag == "cons") {
       return kNil
     }
-    return makeSym("t")
+    return sym_t
   }
 
   |LObj->LObj| subrNumberp := |LObj args -> LObj| {
     if (safeCar(args).tag == "num") {
-      return makeSym("t")
+      return sym_t
     }
     return kNil
   }
 
   |LObj->LObj| subrSymbolp := |LObj args -> LObj| {
     if (safeCar(args).tag == "sym") {
-      return makeSym("t")
+      return sym_t
     }
     return kNil
   }
@@ -381,7 +387,7 @@ class Lisp {
     addToEnv(makeSym("-"), LObj.makeSubr(subrSub), g_env)
     addToEnv(makeSym("/"), LObj.makeSubr(subrDiv), g_env)
     addToEnv(makeSym("mod"), LObj.makeSubr(subrMod), g_env)
-    addToEnv(makeSym("t"), makeSym("t"), g_env)
+    addToEnv(sym_t, sym_t, g_env)
   }
 }
 
