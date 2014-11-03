@@ -56,6 +56,7 @@ class Lisp {
   Int kRPar := ')'
   Int kQuote := '\''
   LObj kNil := LObj.makeNil()
+  LObj loop_val := LObj.makeNil()
 
   LObj safeCar(LObj obj) {
     if (obj.tag == "cons") return obj.car
@@ -80,6 +81,8 @@ class Lisp {
   LObj sym_lambda := makeSym("lambda")
   LObj sym_defun := makeSym("defun")
   LObj sym_setq := makeSym("setq")
+  LObj sym_loop := makeSym("loop")
+  LObj sym_return := makeSym("return")
 
   LObj nreverse(LObj lst) {
     ret := kNil
@@ -236,7 +239,10 @@ class Lisp {
     if (op === sym_quote) {
       return safeCar(args)
     } else if (op === sym_if) {
-      if (eval(safeCar(args), env) === kNil) {
+      cond := eval(safeCar(args), env)
+      if (cond.tag == "error") {
+        return cond
+      } else if (cond === kNil) {
         return eval(safeCar(safeCdr(safeCdr(args))), env)
       }
       return eval(safeCar(safeCdr(args)), env)
@@ -249,6 +255,9 @@ class Lisp {
       return sym
     } else if (op === sym_setq) {
       val := eval(safeCar(safeCdr(args)), env)
+      if (val.tag == "error") {
+        return val
+      }
       sym := safeCar(args)
       bind := findVar(sym, env)
       if (bind === kNil) {
@@ -257,6 +266,11 @@ class Lisp {
         bind.cdr = val
       }
       return val
+    } else if (op === sym_loop) {
+      return loop(args, env)
+    } else if (op === sym_return) {
+      loop_val = eval(safeCar(args), env)
+      return LObj.makeError("")
     }
     return apply(eval(op, env), evlis(args, env), env)
   }
@@ -276,9 +290,25 @@ class Lisp {
     ret := kNil
     while (body.tag == "cons") {
       ret = eval(body.car, env)
+      if (ret.tag == "error") {
+        return ret
+      }
       body = body.cdr
     }
     return ret
+  }
+
+  LObj loop(LObj body, LObj env) {
+    while (true) {
+      ret := progn(body, env)
+      if (ret.tag == "error") {
+        if (ret.str == "") {
+          return loop_val
+        }
+        return ret
+      }
+    }
+    return kNil  // Not reached.
   }
 
   LObj apply(LObj fn, LObj args, LObj env) {
